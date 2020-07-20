@@ -1,6 +1,6 @@
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 from LanguagePack import *
-from PIL import Image, ImageOps, ImageDraw
+from PIL import Image, ImageDraw, ImageChops
 import base64
 from io import BytesIO
 import FanWheel_Resizer as fw
@@ -27,7 +27,7 @@ b64_format_dict = "*.txt *.b64 *.base64"
 
 
 def loadImage(pathread):
-    global image_open
+    global image_open, image_preview
     if "*" + fw.getFileSuffix(pathread) in b64_format_dict.split(" "):
         print("base 64 file")
         data64 = open(pathread, "r")
@@ -41,8 +41,8 @@ def loadImage(pathread):
         if tk_output_path.get() is None or tk_output_path.get().replace(" ", "") == "":
             tk_output_path.set(fw.getFilePath(pathread) + lang["Resized"] + "/")
         tk_filename.set(fw.getFileName(pathread, False))
-        image_open = cropToCenter(image_open)
-        insertList(olist, [min(image_open.size)])
+        image_preview = cropToCenter(image_open, list_crop_mode.current(), 300)
+        insertList(olist, [min(image_preview.size)])
         refresh()
         viewer["bg"] = "#00FF00"
 
@@ -88,8 +88,8 @@ def addSize(*args):
         if add_width is not None:
             if add_width < 4:
                 add_width = 4
-            elif add_width > 10000:
-                add_width = 10000
+            elif add_width > 8000:
+                add_width = 8000
             add_width = int(add_width)
             insertList(olist, [add_width])
             tk_width.set("")
@@ -148,8 +148,8 @@ def saveConfig():
         "output_path": tk_output_path.get(),
         "filetype": tk_filetype.get(),
         "filename": tk_filename.get(),
+        "crop_mode": list_crop_mode.current(),
         "image_path": tk_image_path.get(),
-
     }
     try:
         directory = os.path.dirname("./")
@@ -179,6 +179,7 @@ def loadConfig():
             tk_output_path.set(vdic["output_path"])
             tk_filetype.set(vdic["filetype"])
             pathread = vdic["image_path"]
+            list_crop_mode.current(vdic["crop_mode"])
             try:
                 loadImage(pathread)
             except:
@@ -209,23 +210,24 @@ def resizing():
     log_content = lang["Export path:"] + "\n"
     log_content = log_content + fw.getFilePath(tk_output_path.get()) + "\n\n"
     log_content = log_content + lang["The following {0} image(s) were exported:"].format(len(size_list)) + "\n\n"
-    progress["value"] = (100 * ctr / len(size_list))
-    msize = max(max(size_list), image_open.size[0], image_open.size[1])
-    img_copy = image_open.resize((msize, msize), Image.ANTIALIAS)
+    progress["value"] = 0
+    image_crop = cropToCenter(image_open, list_crop_mode.current())
+    img_copy = resizeMax(image_crop, max(size_list))
     img_copy = cropRadius(img_copy, getRadius())
     for size in size_list:
-        temp_image = img_copy.resize((size, size), Image.ANTIALIAS)
+        temp_image = resizeMax(img_copy, size)
         if "jpg" in tk_filetype.get():
             temp_image = temp_image.convert("RGB")
         if (not "base64" in tk_filetype.get()) and (not "b64" in tk_filetype.get()):
-            path = combine_name + "_" + str(size) + "x" + str(size) + tk_filetype.get()
+            path = combine_name + "_" + str(temp_image.width) + "x" + str(temp_image.height) + tk_filetype.get()
             path = fw.protectPath(path)
             try:
                 temp_image.save(path, quality=100)
             except:
                 pass
         else:
-            path = combine_name + "_" + str(size) + "x" + str(size) + ".txt"
+            path = combine_name + "_" + str(temp_image.width) + "x" +\
+                   str(temp_image.height) + "_" + tk_filetype.get().replace("-", "_") + ".txt"
             formatb = tk_filetype.get().split("-")[-1].upper()
             if formatb == "JPG":
                 formatb = "JPEG"
@@ -237,7 +239,6 @@ def resizing():
                 base64_str = str(base64_str)[2:-1]
                 b64_file = open(path, "w")
                 b64_file.write(base64_str)
-
                 b64_file.close()
             except:
                 pass
@@ -286,7 +287,7 @@ def insertList(listbox, list_values):
     for index in list_values:
         if index in current_list:
             continue
-        list_name = "{0}x{1}".format(index, index)
+        list_name = "{0}x{1}".format(index, index)+lang[" (Max)"]
         listbox.insert(0, list_name)
 
     try:
@@ -337,9 +338,9 @@ def _resizeImage(event):
 
 
 def refresh(*args):
-    global image, image_open, image_prev, image_prev_tk, viewer
-    if image_open is not None:
-        image = cropRadius(image_open.resize((512, 512), Image.ANTIALIAS), getRadius())
+    global image, image_open, image_prev, image_prev_tk, viewer, image_preview
+    if image_preview is not None:
+        image = cropRadius(image_preview, getRadius())
         img_w, img_h = image.size
         win_w, win_h = viewer.winfo_width(), viewer.winfo_height()
         ratio = min(win_w / img_w, win_h / img_h)
@@ -351,20 +352,52 @@ def refresh(*args):
         viewer.configure(image=image_prev_tk)
 
 
-def cropToCenter(img):
-    width, height = img.size
-    square = min(width, height)
-    left = (width - square) / 2
-    top = (height - square) / 2
-    right = (width + square) / 2
-    bottom = (height + square) / 2
-    return img.crop((left, top, right, bottom))
+def refreshCrop(*args):
+    global image, image_open, image_prev, image_prev_tk, viewer, image_preview
+    mode = list_crop_mode.current()
+    if image_open is not None:
+        image_preview = cropToCenter(image_open, list_crop_mode.current(), 300)
+        refresh()
 
 
-def cropRadius(img, radius=0.0, size=None):
-    img = cropToCenter(img)
-    if size is not None:
-        img = img.resize((size, size), Image.ANTIALIAS)
+def resizeMax(img, maxsize=None):
+    if maxsize is not None:
+        ratio = max(img.size) / maxsize
+        newsize = int(round(img.size[0] / ratio)), int(round(img.size[1] / ratio))
+        img = img.resize(newsize, Image.ANTIALIAS)
+        return img
+    else:
+        return img
+
+
+def cropToCenter(img, mode=0, maxsize=None):
+    img = resizeMax(img, maxsize)
+
+    if mode == 0:
+        width, height = img.size
+        square = min(width, height)
+        left = (width - square) / 2
+        top = (height - square) / 2
+        right = (width + square) / 2
+        bottom = (height + square) / 2
+        return img.crop((left, top, right, bottom))
+    elif mode == 1:
+        psize = max(img.size)
+        _canvas = Image.new("RGBA", (psize, psize), (0, 0, 0, 0))
+        _x = (psize - img.width) // 2
+        _y = (psize - img.height) // 2
+        _canvas.paste(img, (_x, _y), img)
+        return _canvas
+    elif mode == 2:
+        width, height = img.size
+        square = min(width, height)
+        return img.resize((square, square), Image.ANTIALIAS)
+    elif mode == 3:
+        return img
+
+
+def cropRadius(img, radius=0.0):
+    img = img.copy()
     if radius > 1:
         radius = 1
     elif radius < 0:
@@ -373,20 +406,24 @@ def cropRadius(img, radius=0.0, size=None):
     if radius != 0:
         scale = 8  # Antialiasing Drawing
         size_anti = width * scale, height * scale
-        r = int(round(radius * width * scale / 2))
-        mask = Image.new('L', size_anti, 0)
+        r = int(round(radius * min(width, height) * scale / 2))
+        old_mask = img.split()[-1].resize(size_anti)
+        mask = Image.new('L', size_anti, 255)
         draw = ImageDraw.Draw(mask)
-        draw.rectangle((0, r, size_anti[0], size_anti[1] - r), fill=255)
-        draw.rectangle((r, 0, size_anti[0] - r, size_anti[1]), fill=255)
-        draw.ellipse((0, 0, 2 * r, 2 * r), fill=255)
-        draw.ellipse((0 + size_anti[0] - 2 * r, 0, 2 * r + size_anti[0] - 2 * r, 2 * r), fill=255)
-        draw.ellipse((0, 0 + size_anti[1] - 2 * r, 2 * r, 2 * r + size_anti[1] - 2 * r), fill=255)
+        draw.rectangle((0, r, size_anti[0], size_anti[1] - r), fill=0)
+        draw.rectangle((r, 0, size_anti[0] - r, size_anti[1]), fill=0)
+        draw.ellipse((0, 0, 2 * r, 2 * r), fill=0)
+        draw.ellipse((0 + size_anti[0] - 2 * r, 0, 2 * r + size_anti[0] - 2 * r, 2 * r), fill=0)
+        draw.ellipse((0, 0 + size_anti[1] - 2 * r, 2 * r, 2 * r + size_anti[1] - 2 * r), fill=0)
         draw.ellipse((0 + size_anti[0] - 2 * r, 0 + size_anti[1] - 2 * r, 2 * r + size_anti[0] - 2 * r,
-                      2 * r + size_anti[1] - 2 * r), fill=255)
+                      2 * r + size_anti[1] - 2 * r), fill=0)
+        try:
+            mask = ImageChops.subtract(old_mask, mask)
+        except Exception as e:
+            print(e)
         mask = mask.resize((width, height), Image.ANTIALIAS)
-        output = ImageOps.fit(img, mask.size, centering=(0.5, 0.5))
-        output.putalpha(mask)
-        return output
+        img.putalpha(mask)
+        return img
     else:
         return img
 
@@ -422,6 +459,7 @@ if __name__ == '__main__':
         root = tk.Tk()
 
         image_open = None
+        image_preview = None
         image = None
         image_prev = None
         image_prev_tk = None
@@ -436,6 +474,8 @@ if __name__ == '__main__':
         tk_lang = tk.StringVar()
         tk_preset = tk.StringVar()
         tk_filetype = tk.StringVar()
+        tk_crop_mode = tk.StringVar()
+        reset_crop = False
 
         tk_width = tk.IntVar(value=256)
         tk_radius = tk.DoubleVar(value=0.0)
@@ -479,6 +519,12 @@ if __name__ == '__main__':
         list_preset.set(lang["-Please Select-"])
         list_preset.place(relwidth=0.19, relheight=relh, relx=0.6, rely=rely, anchor='nw')
 
+        list_crop_mode = ttk.Combobox(master=frame1, textvariable=tk_crop_mode, state="readonly")
+        list_crop_mode["values"] = (lang["Zoom In"], lang["Zoom Out"], lang["Stretch"], lang["Origin"])
+        list_crop_mode.place(relwidth=0.15, relheight=relh, relx=0.8, rely=rely, anchor='nw')
+        list_crop_mode.current(0)
+        list_crop_mode.bind("<<ComboboxSelected>>", refreshCrop)
+
         rely += devy
         entry_img = tk.Entry(master=frame1, textvariable=tk_image_path)
         entry_img.place(relwidth=0.74, relheight=relh, relx=0.05, rely=rely, anchor='nw')
@@ -514,7 +560,7 @@ if __name__ == '__main__':
 
         rely += devy
 
-        label_radius = tk.Label(master=frame1, textvariable=tk.StringVar(value=lang["Border-Radius:"]), anchor="e")
+        label_radius = tk.Label(master=frame1, textvariable=tk.StringVar(value=lang["Border-R:"]), anchor="e")
         label_radius.place(relwidth=0.15, relheight=relh, relx=0.5, rely=rely, anchor='nw')
         list_radius = ttk.Combobox(master=frame1, textvariable=tk_radius)
         list_radius.place(relwidth=0.14, relheight=relh, relx=0.65, rely=rely, anchor='nw')

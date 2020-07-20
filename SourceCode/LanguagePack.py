@@ -13,7 +13,7 @@ lang_cn_s = {
     "Delete": "删除",
     "Clear": "清空",
     "Image Size:": "图片尺寸：",
-    "Border-Radius:": "圆角：",
+    "Border-R:": "圆角：",
     "Output to": "输出到",
     "Export": "导出",
     "Refresh": "刷新",
@@ -24,9 +24,15 @@ lang_cn_s = {
     "Image files": "图片文件",
     "Custom": "自定义",
     "Resized": "尺寸转换",
-    "Resize_Log":"转换记录",
-    "Export path:":"输出路径：",
-    "The following {0} image(s) were exported:":"下列{0}个文件被导出：",
+    "Resize_Log": "转换记录",
+    "Export path:": "输出路径：",
+    "The following {0} image(s) were exported:": "下列{0}个文件被导出：",
+
+    "Zoom In": "放大",
+    "Zoom Out": "缩小",
+    "Stretch": "拉伸",
+    "Origin": "原始",
+    " (Max)": " (最大)",
 }
 
 lang_keys = list(lang_cn_s.keys())
