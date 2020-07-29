@@ -1,4 +1,7 @@
-__version__ = "2.0.1"
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+__version__ = "2.0.2"
 from LanguagePack import *
 from PIL import Image, ImageDraw, ImageChops
 import base64
@@ -22,7 +25,7 @@ https://github.com/FerryYoungFan/FanselineResizer
 lang = lang_en
 lang_code = "en"
 
-img_format_dict = "*.jpg *.jpeg *.png *.gif *.bmp *.ico *.dib *.webp *.tiff *.tga *.txt *.b64 *.base64"
+img_format_dict = "*.jpg *.jpeg *.png *.gif *.bmp *.ico *.dib *.webp *.tiff *.tga *.icns *.txt *.b64 *.base64"
 b64_format_dict = "*.txt *.b64 *.base64"
 
 
@@ -42,7 +45,7 @@ def loadImage(pathread):
             tk_output_path.set(fw.getFilePath(pathread) + lang["Resized"] + "/")
         tk_filename.set(fw.getFileName(pathread, False))
         image_preview = cropToCenter(image_open, list_crop_mode.current(), 300)
-        insertList(olist, [min(image_preview.size)])
+        insertList(olist, [min(image_open.size)])
         refresh()
         viewer["bg"] = "#00FF00"
 
@@ -172,7 +175,6 @@ def loadConfig():
             else:
                 lang = lang_en
             custom = vdic["custom"]
-            replaceList(olist, vdic["size_list"])
             if vdic["current_select"] > 0:
                 list_preset.current(vdic["current_select"])
             tk_radius.set(vdic["radius"])
@@ -182,9 +184,10 @@ def loadConfig():
             list_crop_mode.current(vdic["crop_mode"])
             try:
                 loadImage(pathread)
+                tk_image_path.set(pathread)
             except:
                 return
-            tk_image_path.set(pathread)
+            replaceList(olist, vdic["size_list"])
     except:
         return
 
@@ -226,7 +229,7 @@ def resizing():
             except:
                 pass
         else:
-            path = combine_name + "_" + str(temp_image.width) + "x" +\
+            path = combine_name + "_" + str(temp_image.width) + "x" + \
                    str(temp_image.height) + "_" + tk_filetype.get().replace("-", "_") + ".txt"
             formatb = tk_filetype.get().split("-")[-1].upper()
             if formatb == "JPG":
@@ -246,10 +249,11 @@ def resizing():
         log_content = log_content + fw.getFileName(path) + "\n"
         ctr += 1
         progress["value"] = (100 * ctr / len(size_list))
-    log_path = fw.protectPath(log_path)
-    log_file = open(log_path, "w")
-    log_file.write(log_content)
-    log_file.close()
+    if len(size_list) > 1:
+        log_path = fw.protectPath(log_path)
+        log_file = open(log_path, "w")
+        log_file.write(log_content)
+        log_file.close()
     btn_blend["state"] = "normal"
     tkinter.messagebox.showinfo(lang["Notice"], lang["Resizing done!"])
 
@@ -287,7 +291,7 @@ def insertList(listbox, list_values):
     for index in list_values:
         if index in current_list:
             continue
-        list_name = "{0}x{1}".format(index, index)+lang[" (Max)"]
+        list_name = "{0}x{1}".format(index, index) + lang[" (Max)"]
         listbox.insert(0, list_name)
 
     try:
@@ -598,11 +602,11 @@ if __name__ == '__main__':
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
             ScaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0)
             root.tk.call('tk', 'scaling', ScaleFactor / 75)  # DPI settings
-            fr_logo = b'iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAD/ElEQVR4nJ2VS2xUVRjHf985d+7M9DXtFISCtpVKyyvyUAlGNBofG3bGYISV0ZWuwZhgIiQmENSdLIgbFxAfMYHYGBPtRhdNpBqQFiS1jW3RUqZQOh3mde89n4tppzYlZMq3OLnJSf7P7+TKvmP9GyVhT6vIHo3COCA84AgggmJiRefcL6HlbeN8PreJhuc1DB4IXASsEYwRIlVyxUiKpWIiXtf4ihdGpzxBnw3ysw4RUyuoEUEEnCrl0FEKHCJCuj7Gno1p5vIBlyZmXNzKi15FQ+3KnSrFwBFEjrhnWJ9O8nh7E09uaGbrI420Nvgc+eqqRJGKeCLeSuOIe5butUme2NDMrkdTdLc14HuL5qdmS1wamyXpW5wqNRMoYBCOvtbD9o7UUldOiZziWcMf41myhZBUvU8UKSvIHUphxKkf/yaTLQMQRlq5M4K1lV4GRmaW5F0zgSokfcvwZI7DZ4eYnivjWcG5eRIRCuWIwYk54jGDcysgWFCULYR4RhjL5Dl8ZohMtoQxQhBV0P78N8eN2eJ8J1obgQCRU5xTdne1sL0zRdK3jN7Mc+jMFTLZEjFrcKr8NnqHIFREZB6ee5esVDJXrXwrcOTVbvb2tALw02CGT3tHmLiV59CZIU4e3MbqJp+B0Tv4XoVswfcyByJgRSiHDs8a8qWInZ0p9va0Vp28tG01PesasEYYny7wwddX+fWvGf6ZqcSjuoi3hMCp4nuGY/s30bGqjlwxqBSpi+SVA1Qrq9mY9Bi9eZej315DVReulxMYEcqBo2NVHTs7Uxzbv4mH00mcKpcnsvQNZjAiGIHvL05x5focSd8SRlp9aP9XvjDVDkQgiJSnNjSjCm3NCU4c2Mp7Z4cYny7wSe8Ivb9PoQpD17PE7GIU9wJe5sCpkogZdj/WglPl56u3WNsc5/iBLbSvSlIKHUPXs1yemCUeM8uiuC+BCJQDx7p0kq419QzfuMv7X17h/MAN2poTHH9jC+vTCSKnNCS8+yq+J4ERoRQ6tnc0gVQKbKmPcfK7Yc4PTNLWkuDkwa10PVRPsexqVl8l0HmS3V0tCLB5fSMfvb6Z1kafj3tHOHdhkjWpOG++0I5nZUUOZN/xfo1UScYsX7y7iyB0jE8X2NGZon/4Nh9+cw1rhHXpBDdnSzin1IQvAqpFzxghVwh5pruVxoTHuQuTnO4b4+nuFkan8tWXOZbJE7O1l7vo4ER/VAodO9qbxLNGBieyBJFSChyeleqOi9x/HZeOKmJVNSp66rSvsSn98sWx20QKyZjF8wy+Z3EKC4Eo1P5jVcSva5JSbuYHLwy9t6SQ+yyZSDyHC2KRc0adEK0siapwjDixsXKQz/aFnr7zH20BzvqarZSNAAAAAElFTkSuQmCC'
-            root.iconphoto(False, tk.PhotoImage(data=fr_logo))
         except:
             pass
 
+        fr_logo = b'iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAD/ElEQVR4nJ2VS2xUVRjHf985d+7M9DXtFISCtpVKyyvyUAlGNBofG3bGYISV0ZWuwZhgIiQmENSdLIgbFxAfMYHYGBPtRhdNpBqQFiS1jW3RUqZQOh3mde89n4tppzYlZMq3OLnJSf7P7+TKvmP9GyVhT6vIHo3COCA84AgggmJiRefcL6HlbeN8PreJhuc1DB4IXASsEYwRIlVyxUiKpWIiXtf4ihdGpzxBnw3ysw4RUyuoEUEEnCrl0FEKHCJCuj7Gno1p5vIBlyZmXNzKi15FQ+3KnSrFwBFEjrhnWJ9O8nh7E09uaGbrI420Nvgc+eqqRJGKeCLeSuOIe5butUme2NDMrkdTdLc14HuL5qdmS1wamyXpW5wqNRMoYBCOvtbD9o7UUldOiZziWcMf41myhZBUvU8UKSvIHUphxKkf/yaTLQMQRlq5M4K1lV4GRmaW5F0zgSokfcvwZI7DZ4eYnivjWcG5eRIRCuWIwYk54jGDcysgWFCULYR4RhjL5Dl8ZohMtoQxQhBV0P78N8eN2eJ8J1obgQCRU5xTdne1sL0zRdK3jN7Mc+jMFTLZEjFrcKr8NnqHIFREZB6ee5esVDJXrXwrcOTVbvb2tALw02CGT3tHmLiV59CZIU4e3MbqJp+B0Tv4XoVswfcyByJgRSiHDs8a8qWInZ0p9va0Vp28tG01PesasEYYny7wwddX+fWvGf6ZqcSjuoi3hMCp4nuGY/s30bGqjlwxqBSpi+SVA1Qrq9mY9Bi9eZej315DVReulxMYEcqBo2NVHTs7Uxzbv4mH00mcKpcnsvQNZjAiGIHvL05x5focSd8SRlp9aP9XvjDVDkQgiJSnNjSjCm3NCU4c2Mp7Z4cYny7wSe8Ivb9PoQpD17PE7GIU9wJe5sCpkogZdj/WglPl56u3WNsc5/iBLbSvSlIKHUPXs1yemCUeM8uiuC+BCJQDx7p0kq419QzfuMv7X17h/MAN2poTHH9jC+vTCSKnNCS8+yq+J4ERoRQ6tnc0gVQKbKmPcfK7Yc4PTNLWkuDkwa10PVRPsexqVl8l0HmS3V0tCLB5fSMfvb6Z1kafj3tHOHdhkjWpOG++0I5nZUUOZN/xfo1UScYsX7y7iyB0jE8X2NGZon/4Nh9+cw1rhHXpBDdnSzin1IQvAqpFzxghVwh5pruVxoTHuQuTnO4b4+nuFkan8tWXOZbJE7O1l7vo4ER/VAodO9qbxLNGBieyBJFSChyeleqOi9x/HZeOKmJVNSp66rSvsSn98sWx20QKyZjF8wy+Z3EKC4Eo1P5jVcSva5JSbuYHLwy9t6SQ+yyZSDyHC2KRc0adEK0siapwjDixsXKQz/aFnr7zH20BzvqarZSNAAAAAElFTkSuQmCC'
+        root.iconphoto(False, tk.PhotoImage(data=fr_logo))
 
         def disable_event():
             saveConfig()

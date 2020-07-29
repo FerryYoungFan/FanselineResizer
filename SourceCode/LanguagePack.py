@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 lang_cn_s = {
     "Fanseline Image Resizer": "帆室邻图标批量转换工具",
     "Output Path Selected: ": "已选择输出路径： ",
